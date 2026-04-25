@@ -151,13 +151,15 @@ func CheckForChanges(
 	contextKey string,
 	kContext kubeconfig.Context,
 ) {
-	if _, loaded := watcherRegistry.LoadOrStore(contextKey, struct{}{}); loaded {
+	if _, loaded := watcherRegistry.Load(contextKey); loaded {
 		return
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	contextCancel.Store(contextKey, cancel)
+
+	watcherRegistry.Store(contextKey, struct{}{})
 
 	go runWatcher(ctx, k8scache, contextKey, kContext)
 }
@@ -171,11 +173,6 @@ func runWatcher(
 	contextKey string,
 	kContext kubeconfig.Context,
 ) {
-	defer func() {
-		watcherRegistry.Delete(contextKey)
-		contextCancel.Delete(contextKey)
-	}()
-
 	logger.Log(logger.LevelInfo, nil, nil, "running runWatcher for watching k8s resource: "+contextKey)
 
 	config, err := kContext.RESTConfig()
